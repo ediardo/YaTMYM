@@ -6,17 +6,13 @@ import mysql.connector
 import csv
 import time
 import argparse
-import logging
 
 
-# class GetOptions 
-# reads configuration file
 class GetOptions:
 
   option_file = None
   params = dict()  
 
-  
   def __init__(self, defaults_file = None):
     if defaults_file is None:
       self.option_file = "/etc/my.cnf"          
@@ -38,9 +34,8 @@ class Monitor:
     try:
       self.con =  mysql.connector.connect(user=u, password=p, host=h, port=P)
       self.cursor = self.con.cursor()
-      self.get_global_status()
-      self.get_global_variables()
-      self.create_log_files()
+      self.create_log_file("status")
+      self.create_log_file("variables")
     except mysql.connector.Error as err:
       if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
         print "Something is wrong with your user name or password"
@@ -52,34 +47,25 @@ class Monitor:
   def set_interval(self,n):
     self.interval = n
 
-  # creates logs files if they don't exist
-  def create_log_files(self):
-    if not os.path.exists("status.csv"):
+  def create_log_file(self, file_name):
+    if not os.path.exists(file_name + ".csv"):
       try:
-        log_file = open("status.csv",'a')
-        wr = csv.writer(log_file)
+        my_file = open(file_name + ".csv",'a')
+        wr = csv.writer(my_file)
+        self.get_global_status()
+        self.get_global_variables()
         wr.writerow(self.rows_to_headers(self.global_status))
-        log_file.close()
-      except IOError:
-        print "Error: File could not be created."
-        return 0
-    if not os.path.exists("global.csv"):
-      try:
-        log_file = open("global.csv",'a')
-        wr = csv.writer(log_file)
-        wr.writerow(self.rows_to_headers(self.global_status))
-        log_file.close()
+        my_file.close()
       except IOError:
         print "Error: File could not be created."
         return 0
      
-  # appends a new line to log file
-  def write_log_file(self, line, file_name):
+  def write_log_file(line, file_name):
     log_file = open(file_name, 'a')
     wr = csv.writer(log_file, quoting=csv.QUOTE_MINIMAL)
     wr.writerow(line)    
 
-  # creates a list of words, needed for csv headers
+
   def rows_to_headers(self, rows):
     i = 0
     headers = []
@@ -88,20 +74,18 @@ class Monitor:
     headers.insert(0,"Datetime")
     return headers
   
-  # executes query for global variables
-  # do not like function name
   def get_global_variables(self):
     query = "SHOW GLOBAL VARIABLES"
     self.cursor.execute(query) 
     self.global_variables = self.cursor.fetchall()
-
-  # executes query for global status
+  
   def get_global_status(self):
     query = "SHOW GLOBAL STATUS"
     self.cursor.execute(query) 
     self.global_status = self.cursor.fetchall()
  
   def rows_to_list(self, rows):
+    print rows
     i = 0
     values = [] 
     values.append(time.strftime("%Y-%m-%d %H:%H:%S", time.gmtime()))
@@ -110,13 +94,11 @@ class Monitor:
     return values
    
   def start_monitor(self):
-    self.get_global_status()
-    self.get_global_variables()
     self.global_status = self.rows_to_list(self.global_status)
     self.global_variables = self.rows_to_list(self.global_variables)
-    self.write_log_file(self.global_status, "status.csv")
-    self.write_log_file(self.global_variables, "variables.csv")
-    thread = threading.Timer(1 , self.start_monitor).start()
+    self.write_log_file(self.global_status)
+    self.write_log_file(self.global_variables)
+    thread = threading.Timer(self.interval, self.start_monitor).start()
   
 
 # Defaults file argument parser
