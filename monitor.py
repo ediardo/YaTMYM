@@ -63,11 +63,11 @@ class Monitor:
       except IOError:
         print "Error: File could not be created."
         return 0
-    if not os.path.exists("global.csv"):
+    if not os.path.exists("variables.csv"):
       try:
-        log_file = open("global.csv",'a')
+        log_file = open("variables.csv",'a')
         wr = csv.writer(log_file)
-        wr.writerow(self.rows_to_headers(self.global_status))
+        wr.writerow(self.rows_to_headers(self.global_variables))
         log_file.close()
       except IOError:
         print "Error: File could not be created."
